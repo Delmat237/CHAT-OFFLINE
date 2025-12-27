@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
-const { User, Message, Group } = require('../models');
+const { User, Group, Message } = require('../models');
+const sequelize = require('../config/database');
 const { encryptMessage, decryptMessage } = require('../utils/encryption');
 
 // Send a message to a user or group
@@ -7,6 +8,7 @@ const sendMessage = async (req, res) => {
   try {
     const { recipientId, content, type } = req.body;
     const senderId = req.user.id;
+    console.log('[DEBUG] sendMessage request:', { body: req.body, user: req.user.id });
 
     // Validate recipient exists
     let recipient;
@@ -17,6 +19,7 @@ const sendMessage = async (req, res) => {
     }
 
     if (!recipient) {
+      console.log(`[DEBUG] Recipient not found. Type: ${type}, ID: ${recipientId}`);
       return res.status(404).json({
         status: 'fail',
         message: `${type === 'user' ? 'User' : 'Group'} not found`
@@ -129,7 +132,7 @@ const getUserConversation = async (req, res) => {
 const getGroupConversation = async (req, res) => {
   try {
     const { groupId } = req.params;
-    
+
     // Check if group exists
     const group = await Group.findByPk(groupId);
     if (!group) {
@@ -201,8 +204,8 @@ const getAllConversations = async (req, res) => {
         isDeleted: false
       },
       attributes: [
-        [sequelize.fn('DISTINCT', sequelize.col('recipientId')), 'recipientId'],
-        [sequelize.fn('DISTINCT', sequelize.col('senderId')), 'senderId'],
+        ['recipientId', 'recipientId'],
+        ['senderId', 'senderId'],
         [sequelize.fn('MAX', sequelize.col('sentDate')), 'lastMessageDate'],
         [sequelize.fn('MAX', sequelize.col('sentTime')), 'lastMessageTime']
       ],
@@ -213,7 +216,8 @@ const getAllConversations = async (req, res) => {
       order: [
         ['lastMessageDate', 'DESC'],
         ['lastMessageTime', 'DESC']
-      ]
+      ],
+      raw: true
     });
 
     // Process user conversations
@@ -223,7 +227,7 @@ const getAllConversations = async (req, res) => {
         const partner = await User.findByPk(partnerId, {
           attributes: ['id', 'name', 'photo', 'status', 'role', 'lastSeen']
         });
-        
+
         // Get the last message
         const lastMessage = await Message.findOne({
           where: {
@@ -249,6 +253,8 @@ const getAllConversations = async (req, res) => {
           photo: partner.photo,
           status: partner.status,
           role: partner.role,
+          type: 'user',
+          participants: [partner],
           lastSeen: partner.lastSeen,
           lastMessage: {
             content: lastMessage.content ? decryptMessage(lastMessage.content) : null,
@@ -272,28 +278,34 @@ const getAllConversations = async (req, res) => {
       },
       include: [{
         model: Group,
+        required: true,
         include: [{
           model: User,
-          where: { id: userId }
+          where: { id: userId },
+          attributes: []
         }]
       }],
       attributes: [
-        [sequelize.fn('DISTINCT', sequelize.col('recipientId')), 'groupId'],
+        ['recipientId', 'groupId'],
         [sequelize.fn('MAX', sequelize.col('sentDate')), 'lastMessageDate'],
         [sequelize.fn('MAX', sequelize.col('sentTime')), 'lastMessageTime']
       ],
-      group: ['groupId'],
+      group: ['Message.recipientId', 'Group.id'],
       order: [
         ['lastMessageDate', 'DESC'],
         ['lastMessageTime', 'DESC']
-      ]
+      ],
+      raw: true
     });
 
     // Process group conversations
     const groupConversations = await Promise.all(
       groupMessages.map(async (message) => {
         const group = await Group.findByPk(message.groupId);
-        
+        const members = await group.getUsers({
+          attributes: ['id', 'name', 'photo', 'status', 'role', 'lastSeen']
+        });
+
         // Get the last message
         const lastMessage = await Message.findOne({
           where: {
@@ -308,6 +320,7 @@ const getAllConversations = async (req, res) => {
           id: group.id,
           name: group.name,
           type: 'group',
+          participants: members,
           creationDate: group.creationDate,
           lastMessage: {
             content: lastMessage.content ? decryptMessage(lastMessage.content) : null,
@@ -381,8 +394,8 @@ const getConversationsByRole = async (req, res) => {
         }
       ],
       attributes: [
-        [sequelize.fn('DISTINCT', sequelize.col('recipientId')), 'recipientId'],
-        [sequelize.fn('DISTINCT', sequelize.col('senderId')), 'senderId'],
+        ['recipientId', 'recipientId'],
+        ['senderId', 'senderId'],
         [sequelize.fn('MAX', sequelize.col('sentDate')), 'lastMessageDate'],
         [sequelize.fn('MAX', sequelize.col('sentTime')), 'lastMessageTime']
       ],
@@ -393,7 +406,8 @@ const getConversationsByRole = async (req, res) => {
       order: [
         ['lastMessageDate', 'DESC'],
         ['lastMessageTime', 'DESC']
-      ]
+      ],
+      raw: true
     });
 
     // Process conversations
@@ -401,7 +415,7 @@ const getConversationsByRole = async (req, res) => {
       conversations.map(async (conversation) => {
         const partnerId = conversation.senderId === userId ? conversation.recipientId : conversation.senderId;
         const partner = conversation.senderId === userId ? conversation.Recipient : conversation.Sender;
-        
+
         // Skip if partner doesn't match the role
         if (partner.role !== role) {
           return null;
@@ -432,6 +446,8 @@ const getConversationsByRole = async (req, res) => {
           photo: partner.photo,
           status: partner.status,
           role: partner.role,
+          type: 'user',
+          participants: [partner],
           lastSeen: partner.lastSeen,
           lastMessage: {
             content: lastMessage.content ? decryptMessage(lastMessage.content) : null,

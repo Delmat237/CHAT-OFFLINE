@@ -8,7 +8,7 @@ const Message = sequelize.define('Message', {
     primaryKey: true
   },
   type: {
-    type: DataTypes.ENUM('group', 'private'),
+    type: DataTypes.ENUM('group', 'user'),
     allowNull: false
   },
   senderId: {

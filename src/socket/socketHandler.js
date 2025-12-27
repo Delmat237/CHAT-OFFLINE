@@ -1,12 +1,12 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { User, Message } = require('../models');
 const { encryptMessage, decryptMessage } = require('../utils/encryption');
 
 // Socket.io handler
 const socketHandler = (io) => {
   // Store active users
   const activeUsers = new Map();
-  
+
   // Store typing status
   const typingUsers = new Map();
 
@@ -14,14 +14,14 @@ const socketHandler = (io) => {
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
-      
+
       if (!token) {
         return next(new Error('Authentication error: Token not provided'));
       }
 
       // Verify the token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
+
       // Check if user exists
       const user = await User.findByPk(decoded.id);
       console.log("Utilisateur trouvé:", user);
@@ -39,19 +39,19 @@ const socketHandler = (io) => {
 
   io.on('connection', (socket) => {
     const userId = socket.user.id;
-    const username = socket.user.name; // Utilise username ici
-    console.log(`User ${username} connected`); // Affiche le nom d'utilisateur
-  
+    const username = socket.user.name;
+    console.log(`User ${username} (${userId}) connected`);
+
     // Émettre un message de bienvenue au client
     socket.emit('connected', { message: 'Socket connection established' });
-  
-    // Ajouter l'utilisateur dans le map activeUsers avec le username comme clé
-    activeUsers.set(username, socket.id);
-  
+
+    // Ajouter l'utilisateur dans le map activeUsers avec le userId comme clé
+    activeUsers.set(userId, socket.id);
+
     // Quand un utilisateur se déconnecte
     socket.on('disconnect', () => {
       console.log(`User ${username} disconnected`);
-      activeUsers.delete(username); // Supprimer l'utilisateur de la map quand il se déconnecte
+      activeUsers.delete(userId); // Supprimer l'utilisateur de la map avec userId
 
       // Remove user from typing users map
       for (const [conversationId, typingUserId] of typingUsers.entries()) {
@@ -59,7 +59,7 @@ const socketHandler = (io) => {
           typingUsers.delete(conversationId);
         }
       }
-      
+
       // Update user status to offline
       User.update(
         { status: 'offline', lastSeen: new Date() },
@@ -72,9 +72,9 @@ const socketHandler = (io) => {
         status: 'offline'
       });
     });
-    
 
-    
+
+
     // Update user status to online
     User.update(
       { status: 'online', lastSeen: new Date() },
@@ -91,15 +91,15 @@ const socketHandler = (io) => {
       status: 'online',
       message: `${socket.user.username || "Un utilisateur"} est en ligne`
     });
-    
+
     // Listen for private messages
     socket.on('privateMessage', async (data) => {
       try {
         const { recipientId, content, attachment } = data;
-        
+
         // Encrypt message content
         const encryptedContent = content ? encryptMessage(content) : null;
-        
+
         // Create message data
         const messageData = {
           type: 'user',
@@ -112,11 +112,15 @@ const socketHandler = (io) => {
         };
 
         // Save message to database
-        // This would typically be handled by the messageController
-        
+        try {
+          await Message.create(messageData);
+        } catch (dbError) {
+          console.error('Failed to save private message:', dbError);
+        }
+
         // Find the recipient's socket
         const recipientSocketId = activeUsers.get(recipientId);
-        
+
         // If recipient is online, send them the message
         if (recipientSocketId) {
           io.to(recipientSocketId).emit('privateMessage', {
@@ -124,7 +128,7 @@ const socketHandler = (io) => {
             content // Send the original content to the recipient
           });
         }
-        
+
         // Send confirmation back to sender
         socket.emit('messageSent', {
           success: true,
@@ -143,10 +147,10 @@ const socketHandler = (io) => {
     socket.on('groupMessage', async (data) => {
       try {
         const { groupId, content, attachment } = data;
-        
+
         // Encrypt message content
         const encryptedContent = content ? encryptMessage(content) : null;
-        
+
         // Create message data
         const messageData = {
           type: 'group',
@@ -159,14 +163,18 @@ const socketHandler = (io) => {
         };
 
         // Save message to database
-        // This would typically be handled by the messageController
-        
+        try {
+          await Message.create(messageData);
+        } catch (dbError) {
+          console.error('Failed to save group message:', dbError);
+        }
+
         // Broadcast to all group members
         socket.to(groupId).emit('groupMessage', {
           ...messageData,
           content // Send the original content
         });
-        
+
         // Send confirmation back to sender
         socket.emit('messageSent', {
           success: true,
@@ -194,10 +202,10 @@ const socketHandler = (io) => {
     // Handle typing status
     socket.on('typing', (data) => {
       const { recipientId, isTyping } = data;
-      
+
       // Create a unique conversation ID
       const conversationId = [userId, recipientId].sort().join('-');
-      
+
       // Update typing status
       if (isTyping) {
         typingUsers.set(conversationId, userId);
@@ -206,10 +214,10 @@ const socketHandler = (io) => {
           typingUsers.delete(conversationId);
         }
       }
-      
+
       // Find the recipient's socket
       const recipientSocketId = activeUsers.get(recipientId);
-      
+
       // If recipient is online, send them the typing status
       if (recipientSocketId) {
         io.to(recipientSocketId).emit('typing', {
@@ -223,14 +231,14 @@ const socketHandler = (io) => {
     // socket.on('disconnect', () => {
     //   // Remove user from active users map
     //   activeUsers.delete(userId);
-      
+
     //   // Remove user from typing users map
     //   for (const [conversationId, typingUserId] of typingUsers.entries()) {
     //     if (typingUserId === userId) {
     //       typingUsers.delete(conversationId);
     //     }
     //   }
-      
+
     //   // Update user status to offline
     //   User.update(
     //     { status: 'offline', lastSeen: new Date() },

@@ -4,13 +4,13 @@ const Message = require('./Message');
 const GroupUser = require('./GroupUser');
 
 // Define associations
-User.belongsToMany(Group, { 
+User.belongsToMany(Group, {
   through: GroupUser,
   foreignKey: 'userId',
   otherKey: 'groupId'
 });
 
-Group.belongsToMany(User, { 
+Group.belongsToMany(User, {
   through: GroupUser,
   foreignKey: 'groupId',
   otherKey: 'userId'
@@ -36,6 +36,22 @@ User.hasMany(Message, {
     type: 'user'
   },
   as: 'ReceivedMessages'
+});
+
+Message.belongsTo(User, {
+  as: 'Sender',
+  foreignKey: 'senderId'
+});
+
+Message.belongsTo(User, {
+  as: 'Recipient',
+  foreignKey: 'recipientId',
+  constraints: false
+});
+
+Message.belongsTo(Group, {
+  foreignKey: 'recipientId',
+  constraints: false
 });
 
 module.exports = {

@@ -1,5 +1,5 @@
 const express = require('express');
-const { body } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 const messageController = require('../controllers/messageController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -21,6 +21,17 @@ router.post(
       .isString()
       .withMessage('Content must be a string')
   ],
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+    next();
+  },
   messageController.sendMessage
 );
 
