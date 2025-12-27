@@ -130,28 +130,28 @@ const createMessages = (
 ): Message[] => {
   const messages: Message[] = [];
   const date = new Date();
-  
+
   for (let i = count; i > 0; i--) {
     const sender = i % 2 === 0 ? "u0" : userIds[Math.floor(Math.random() * userIds.length)];
     const hourOffset = Math.floor(i / 2);
     date.setHours(date.getHours() - hourOffset);
-    
+
     messages.push({
       id: `msg-${conversationId}-${i}`,
-      content: i === 1 && sender !== "u0" 
-        ? "Bonjour, pourriez-vous partager les derniers devoirs en mathématiques ?" 
-        : i === 1 && sender === "u0" 
-        ? "Je vous ferai parvenir le document dès que possible." 
-        : sender === "u0" 
-        ? `Ceci est un message envoyé pour tester l'application. Message numéro ${i}.` 
-        : `Ceci est un message reçu pour tester l'application. Message numéro ${i}.`,
+      content: i === 1 && sender !== "u0"
+        ? "Bonjour, pourriez-vous partager les derniers devoirs en mathématiques ?"
+        : i === 1 && sender === "u0"
+          ? "Je vous ferai parvenir le document dès que possible."
+          : sender === "u0"
+            ? `Ceci est un message envoyé pour tester l'application. Message numéro ${i}.`
+            : `Ceci est un message reçu pour tester l'application. Message numéro ${i}.`,
       senderId: sender,
       timestamp: date.toISOString(),
       status: i <= 2 && sender === "u0" ? "pending" : "sent",
       attachments: i === 2 && sender === "u0" ? [mockAttachments[0]] : undefined,
     });
   }
-  
+
   return messages;
 };
 
@@ -186,7 +186,7 @@ export const mockConversations: Conversation[] = [
   },
   {
     id: "c4",
-    type: "private",
+    type: "user",
     name: mockUsers.find((u) => u.id === "u1")?.name || "",
     participants: [mockUsers.find((u) => u.id === "u1") as User],
     messages: createMessages("c4", ["u1"], 7),
@@ -195,7 +195,7 @@ export const mockConversations: Conversation[] = [
   },
   {
     id: "c5",
-    type: "private",
+    type: "user",
     name: mockUsers.find((u) => u.id === "u2")?.name || "",
     participants: [mockUsers.find((u) => u.id === "u2") as User],
     messages: createMessages("c5", ["u2"], 5),
@@ -229,7 +229,7 @@ export const mockCalls: Call[] = [
 export const userState: UserState = {
 
 
-  
+
   currentUser: currentUser,
   isConnected: false,
   lastSyncTime: "2023-05-03T11:30:00",

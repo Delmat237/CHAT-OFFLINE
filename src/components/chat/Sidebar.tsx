@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Search, Plus, CloudOff, Clock, ArrowLeft, MessageSquare, Users } from "lucide-react";
 import Avatar from "./Avatar";
@@ -18,6 +17,8 @@ interface SidebarProps {
   selectedConversationId: string | null;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  onCreateGroup: (name: string, participants: User[]) => void;
+  onStartConversation: (userId: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -29,12 +30,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   selectedConversationId,
   isSidebarOpen,
   onToggleSidebar,
+  onCreateGroup,
+  onStartConversation,
 }) => {
   const [activeTab, setActiveTab] = useState<"chats" | "users">("chats");
   const [searchQuery, setSearchQuery] = useState("");
   const isMobile = useIsMobile();
 
-  const filteredConversations = conversations.filter((conv) =>
+  const uniqueConversations = Array.from(
+    new Map(conversations.map(c => [c.id, c])).values()
+  );
+
+  const filteredConversations = uniqueConversations.filter((conv) =>
     conv.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -47,11 +54,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   const getLastMessagePreview = (conversation: Conversation) => {
     const lastMessage = conversation.messages[conversation.messages.length - 1];
     if (!lastMessage) return "";
-    
+
     if (lastMessage.attachments && lastMessage.attachments.length > 0) {
       return `📎 ${lastMessage.attachments[0].name}`;
     }
-    
+
     return lastMessage.content.length > 30
       ? `${lastMessage.content.substring(0, 30)}...`
       : lastMessage.content;
@@ -60,24 +67,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
-    
+
     if (date.toDateString() === now.toDateString()) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else {
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
   };
-  
-  const handleCreateGroup = (name: string, participants: User[]) => {
-    // Cette fonction sera implémentée au niveau du parent
-    console.log("Create group:", name, participants);
-  };
-  
-  const handleStartConversation = (userId: string) => {
-    // Cette fonction sera implémentée au niveau du parent
-    console.log("Start conversation with:", userId);
-    localStorage.setItem("selectedConversationId", userId);
-  };
+
+
 
   if (isMobile && !isSidebarOpen) return null;
 
@@ -98,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
         {isMobile && (
-          <button 
+          <button
             onClick={onToggleSidebar}
             className="p-1 rounded-full hover:bg-white/10"
           >
@@ -109,16 +107,16 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* User info & Tabs */}
       <div className="p-3 flex items-center bg-ecole-primary/10">
-        <Avatar 
-          src={currentUser.photo} 
-          alt={currentUser.name} 
-          status={currentUser.status} 
+        <Avatar
+          src={currentUser.photo}
+          alt={currentUser.name}
+          status={currentUser.status}
         />
         <div className="ml-3 flex-1 text-sm">
           <div className="font-medium text-ecole-text">{currentUser.name}</div>
           <div className="text-ecole-meta text-xs">
-            {currentUser.role === "teacher" ? "Professeur" : 
-             currentUser.role === "student" ? "Élève" : "Personnel"}
+            {currentUser.role === "teacher" ? "Professeur" :
+              currentUser.role === "student" ? "Élève" : "Personnel"}
           </div>
         </div>
       </div>
@@ -178,7 +176,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="px-4 py-2 text-xs font-semibold text-ecole-meta uppercase tracking-wider">
               Groupes
             </div>
-            
+
             {/* Group List */}
             {filteredConversations
               .filter((conv) => conv.type === "group")
@@ -195,10 +193,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                   }}
                 >
                   <div className="mr-3">
-                    <Avatar 
-                      alt={conversation.name} 
+                    <Avatar
+                      alt={conversation.name}
                       src={conversation.avatar}
-                      className="bg-ecole-primary/80" 
+                      className="bg-ecole-primary/80"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -213,10 +211,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                       )}
                     </div>
                     <div className="text-sm text-ecole-meta truncate flex items-center">
-                      {conversation.messages.length > 0 && 
-                       conversation.messages[conversation.messages.length - 1].status === "pending" && (
-                        <Clock size={12} className="mr-1 text-ecole-offline" />
-                      )}
+                      {conversation.messages.length > 0 &&
+                        conversation.messages[conversation.messages.length - 1].status === "pending" && (
+                          <Clock size={12} className="mr-1 text-ecole-offline" />
+                        )}
                       {getLastMessagePreview(conversation)}
                     </div>
                   </div>
@@ -232,10 +230,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="px-4 py-2 text-xs font-semibold text-ecole-meta uppercase tracking-wider mt-2">
               Contacts Directs
             </div>
-            
+
             {/* Contacts List */}
             {filteredConversations
-              .filter((conv) => conv.type === "private")
+              .filter((conv) => conv.type === "user")
               .map((conversation) => (
                 <div
                   key={conversation.id}
@@ -267,10 +265,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                       )}
                     </div>
                     <div className="text-sm text-ecole-meta truncate flex items-center">
-                      {conversation.messages.length > 0 && 
-                       conversation.messages[conversation.messages.length - 1].status === "pending" && (
-                        <Clock size={12} className="mr-1 text-ecole-offline" />
-                      )}
+                      {conversation.messages.length > 0 &&
+                        conversation.messages[conversation.messages.length - 1].status === "pending" && (
+                          <Clock size={12} className="mr-1 text-ecole-offline" />
+                        )}
                       {getLastMessagePreview(conversation)}
                     </div>
                   </div>
@@ -287,19 +285,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                 Aucune conversation trouvée
               </div>
             )}
-            
+
             {/* Action Buttons */}
             <div className="px-4 py-3 space-y-2">
               <CreateDirectMessageModal
                 users={users}
                 currentUser={currentUser}
-                onStartConversation={handleStartConversation}
+                onStartConversation={onStartConversation}
               />
-              
+
               <CreateGroupModal
                 users={users}
                 currentUser={currentUser}
-                onCreateGroup={handleCreateGroup}
+                onCreateGroup={onCreateGroup}
               />
             </div>
           </div>
@@ -331,17 +329,17 @@ const Sidebar: React.FC<SidebarProps> = ({
                     // Find or create a conversation with this user
                     const existingConversation = conversations.find(
                       (conv) =>
-                        conv.type === "private" &&
+                        conv.type === "user" &&
                         conv.participants.some((p) => p.id === user.id)
                     );
-                    
+
                     if (existingConversation) {
                       onSelectConversation(existingConversation.id);
                     } else {
                       // This would create a new conversation in a real app
-                      console.log("Create new conversation with:", user.name);
+                      onStartConversation(user.id);
                     }
-                    
+
                     if (isMobile) onToggleSidebar();
                   }}
                 >
@@ -351,8 +349,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <div className="flex-1">
                     <div className="font-medium text-ecole-text">{user.name}</div>
                     <div className="text-xs text-ecole-meta">
-                      {user.role === "teacher" ? "Professeur" : 
-                       user.role === "student" ? "Élève" : "Personnel"}
+                      {user.role === "teacher" ? "Professeur" :
+                        user.role === "student" ? "Élève" : "Personnel"}
                       {user.status === "offline" && user.lastSeen && (
                         <span> · Vu {formatTimestamp(user.lastSeen)}</span>
                       )}

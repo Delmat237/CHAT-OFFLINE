@@ -13,20 +13,20 @@ interface ChatHeaderProps {
   onInitiateCall?: () => void;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ 
-  conversation, 
-  isConnected, 
+const ChatHeader: React.FC<ChatHeaderProps> = ({
+  conversation,
+  isConnected,
   onToggleSidebar,
-  onInitiateCall 
+  onInitiateCall
 }) => {
   const isMobile = useIsMobile();
 
   const getParticipantString = () => {
-    if (conversation.type === "private") {
+    if (conversation.type === "user") {
       const participant = conversation.participants[0];
-      return participant ? 
-        participant.role === "teacher" ? "Professeur" : 
-        participant.role === "student" ? "Élève" : "Personnel" 
+      return participant ?
+        participant.role === "teacher" ? "Professeur" :
+          participant.role === "student" ? "Élève" : "Personnel"
         : "";
     } else {
       const count = conversation.participants.length;
@@ -38,20 +38,20 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     <div className="border-b border-gray-200 p-3 flex items-center justify-between bg-white shadow-sm">
       <div className="flex items-center">
         {isMobile && (
-          <button 
+          <button
             onClick={onToggleSidebar}
             className="mr-2 p-1 rounded-full hover:bg-gray-100 focus:outline-none"
           >
             <ArrowLeft size={20} className="text-ecole-primary" />
           </button>
         )}
-        
+
         <Avatar
           src={conversation.avatar}
           alt={conversation.name}
-          status={conversation.type === "private" ? conversation.participants[0]?.status : undefined}
+          status={conversation.type === "user" ? conversation.participants[0]?.status : undefined}
         />
-        
+
         <div className="ml-3">
           <div className="font-bold text-ecole-text">{conversation.name}</div>
           <div className="text-xs text-ecole-meta">
@@ -67,10 +67,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             <span className="hidden sm:inline">Hors ligne</span>
           </div>
         )}
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
+
+        <Button
+          variant="ghost"
+          size="icon"
           className="text-ecole-meta hover:bg-gray-100 hover:text-ecole-primary"
           onClick={onInitiateCall}
           disabled={!isConnected}
@@ -78,19 +78,19 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         >
           <PhoneCall size={18} />
         </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
+
+        <Button
+          variant="ghost"
+          size="icon"
           className="text-ecole-meta hover:bg-gray-100 hover:text-ecole-primary"
           title="Rechercher"
         >
           <Search size={18} />
         </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
+
+        <Button
+          variant="ghost"
+          size="icon"
           className="text-ecole-meta hover:bg-gray-100 hover:text-ecole-primary"
           title="Partager un fichier"
         >

@@ -27,7 +27,7 @@ export interface Attachment {
 
 export interface Conversation {
   id: string;
-  type: "private" | "group";
+  type: "user" | "group";
   name: string;
   participants: User[];
   messages: Message[];
