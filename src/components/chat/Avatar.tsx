@@ -32,6 +32,8 @@ const Avatar: React.FC<AvatarProps> = ({
       .substring(0, 2);
   };
 
+  const [imgError, setImgError] = React.useState(false);
+
   return (
     <div className="relative">
       <div
@@ -41,11 +43,12 @@ const Avatar: React.FC<AvatarProps> = ({
           className
         )}
       >
-        {src ? (
+        {src && !imgError ? (
           <img
             src={src}
             alt={alt}
             className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
           />
         ) : (
           <span className="font-medium">{getInitials(alt)}</span>

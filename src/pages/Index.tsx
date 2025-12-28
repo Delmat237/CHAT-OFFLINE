@@ -46,7 +46,11 @@ const Index = () => {
         if (response.ok) {
           const result = await response.json();
           if (result.status === "success" && Array.isArray(result.data.users)) {
-            setUsers(result.data.users);
+            const processedUsers = result.data.users.map((u: any) => ({
+              ...u,
+              photo: u.photo ? (u.photo.startsWith('http') ? u.photo : `${API_URL}/${u.photo}`) : `${API_URL}/default.jpg`
+            }));
+            setUsers(processedUsers);
           }
         }
       } catch (error) {
@@ -80,17 +84,25 @@ const Index = () => {
             const fetchedConversations: Conversation[] = result.data.conversations.map((conv: any) => ({
               id: conv.id,
               type: conv.type,
-              name: conv.type === 'group' ? conv.name : conv.participants.find((p: any) => p.id !== currentUser.id)?.name || 'Unknown User',
+              name: conv.type === 'group'
+                ? conv.name
+                : (conv.participants.find((p: any) => String(p.id) !== String(currentUser.id))?.name || currentUser.name || 'Unknown User'),
               participants: conv.participants.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                photo: p.photo ? `${API_URL}/${p.photo}` : './backend/profile.jpg',
+                photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/${p.photo}`) : `${API_URL}/default.jpg`,
                 role: p.role,
                 status: p.status,
               })),
               messages: [], // Messages will be fetched on selection
               unreadCount: conv.unreadCount || 0,
-              avatar: conv.type === 'group' ? (conv.avatar ? `${API_URL}/${conv.avatar}` : '') : (conv.participants.find((p: any) => p.id !== currentUser.id)?.photo ? `${API_URL}/${conv.participants.find((p: any) => p.id !== currentUser.id)?.photo}` : ''),
+              avatar: conv.type === 'group'
+                ? (conv.avatar ? (conv.avatar.startsWith('http') ? conv.avatar : `${API_URL}/${conv.avatar}`) : '')
+                : (() => {
+                  const otherParticipant = conv.participants.find((p: any) => String(p.id) !== String(currentUser.id));
+                  const photo = otherParticipant?.photo;
+                  return photo ? (photo.startsWith('http') ? photo : `${API_URL}/${photo}`) : `${API_URL}/default.jpg`;
+                })(),
               lastMessage: conv.lastMessage ? {
                 id: conv.lastMessage.id,
                 content: conv.lastMessage.content,
@@ -362,27 +374,49 @@ const Index = () => {
           attachments: m.attachment ? [{
             id: `att-${m.id}`,
             name: "Piece jointe",
-            url: `${API_URL}/${m.attachment}`,
+            url: `${API_URL}/uploads/${m.attachment}`,
             type: m.attachmentType || 'document',
             size: '?'
-          }] : []
+          }] : [],
+          isForwarded: m.isForwarded,
+          replyTo: m.replyTo
         }));
 
         // Update conversation with real messages and members
         setConversations(prev => prev.map(c => {
-          if (c.id !== id) return c;
+          if (String(c.id) !== String(id)) return c;
+
+          let updatedName = c.name;
+          let updatedAvatar = c.avatar;
+          let updatedParticipants = c.participants;
+
+          if (c.type === 'user' && result.data.user) {
+            updatedName = result.data.user.name;
+            const photo = result.data.user.photo;
+            updatedAvatar = photo ? (photo.startsWith('http') ? photo : `${API_URL}/${photo}`) : `${API_URL}/default.jpg`;
+            updatedParticipants = [{
+              id: result.data.user.id,
+              name: result.data.user.name,
+              photo: updatedAvatar,
+              status: result.data.user.status,
+              lastSeen: result.data.user.lastSeen
+            }];
+          } else if (c.type === 'group' && result.data.group?.members) {
+            updatedParticipants = result.data.group.members.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/${p.photo}`) : `${API_URL}/default.jpg`,
+              role: p.role,
+              status: p.status,
+            }));
+          }
+
           return {
             ...c,
+            name: updatedName,
+            avatar: updatedAvatar,
             messages: messages,
-            participants: conversation.type === 'group' && result.data.group?.members
-              ? result.data.group.members.map((p: any) => ({
-                id: p.id,
-                name: p.name,
-                photo: p.photo ? `${API_URL}/${p.photo}` : './backend/profile.jpg',
-                role: p.role,
-                status: p.status,
-              }))
-              : c.participants,
+            participants: updatedParticipants,
             unreadCount: 0
           };
         }));
