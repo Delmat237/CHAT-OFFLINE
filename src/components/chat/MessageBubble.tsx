@@ -90,20 +90,41 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {message.attachments && message.attachments.length > 0 && (
             <div className="mb-2">
               {message.attachments.map((attachment) => (
-                <div
-                  key={attachment.id}
-                  className={cn(
-                    "p-3 rounded-lg flex items-center mb-1",
-                    isCurrentUser
-                      ? "bg-ecole-primary text-white"
-                      : "bg-gray-100 text-ecole-text"
+                <div key={attachment.id} className="mb-2">
+                  {attachment.type.startsWith('image/') ? (
+                    <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50 max-w-sm">
+                      <img
+                        src={attachment.url}
+                        alt={attachment.name}
+                        className="w-full h-auto object-cover max-h-64 cursor-pointer hover:opacity-95 transition-opacity"
+                        onClick={() => window.open(attachment.url, '_blank')}
+                      />
+                      <div className="p-2 text-xs flex items-center justify-between text-ecole-meta bg-white">
+                        <span className="truncate flex-1">{attachment.name}</span>
+                        <a href={attachment.url} download={attachment.name} className="ml-2 hover:text-ecole-primary">
+                          Télécharger
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "p-3 rounded-lg flex items-center hover:opacity-90 transition-opacity",
+                        isCurrentUser
+                          ? "bg-ecole-primary text-white"
+                          : "bg-gray-100 text-ecole-text"
+                      )}
+                    >
+                      <Paperclip size={16} className="mr-2" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{attachment.name}</div>
+                        <div className="text-xs opacity-80">{attachment.size}</div>
+                      </div>
+                    </a>
                   )}
-                >
-                  <Paperclip size={16} className="mr-2" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{attachment.name}</div>
-                    <div className="text-xs opacity-80">{attachment.size}</div>
-                  </div>
                 </div>
               ))}
             </div>
@@ -118,7 +139,37 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   : "bg-ecole-otherMessage text-ecole-text rounded-bl-none"
               )}
             >
-              <div className="whitespace-pre-line">{message.content}</div>
+              {/* Forwarded indicator */}
+              {message.isForwarded && (
+                <div className="flex items-center gap-1 text-xs text-gray-500 italic mb-2">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                  </svg>
+                  <span>Transféré</span>
+                </div>
+              )}
+
+              {/* Reply quote */}
+              {message.replyTo && (
+                <div className={cn(
+                  "mb-2 pl-2 border-l-4 py-1 rounded",
+                  isCurrentUser ? "border-blue-600 bg-blue-50/50" : "border-green-600 bg-green-50/50"
+                )}>
+                  <div className="text-xs font-semibold text-gray-700">
+                    {message.replyTo.senderName}
+                  </div>
+                  <div className="text-xs text-gray-600 truncate">
+                    {message.replyTo.content}
+                  </div>
+                </div>
+              )}
+
+              <div className={cn(
+                "whitespace-pre-line",
+                message.isForwarded && "text-sm"
+              )}>
+                {message.content || ""}
+              </div>
             </div>
 
             {!isSelectionMode && (

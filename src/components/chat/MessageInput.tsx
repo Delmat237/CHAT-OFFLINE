@@ -1,22 +1,27 @@
 
 import React, { useState, FormEvent } from "react";
-import { Paperclip } from "lucide-react";
+import { Paperclip, X } from "lucide-react";
+import { Message } from "@/types/chat";
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: File[]) => void;
   disabled?: boolean;
+  replyTo?: Message | null;
+  onCancelReply?: () => void;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
   disabled = false,
+  replyTo,
+  onCancelReply,
 }) => {
   const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (message.trim() || attachments.length > 0) {
       onSendMessage(message.trim(), attachments);
       setMessage("");
@@ -40,6 +45,22 @@ const MessageInput: React.FC<MessageInputProps> = ({
       onSubmit={handleSubmit}
       className="border-t border-gray-200 px-4 py-3 bg-white"
     >
+      {replyTo && (
+        <div className="mb-2 bg-gray-100 rounded-lg p-2 flex items-start justify-between">
+          <div className="flex-1">
+            <div className="text-xs text-ecole-meta font-medium">Répondre à</div>
+            <div className="text-sm text-ecole-text truncate">{replyTo.content}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="ml-2 text-ecole-meta hover:text-ecole-offline"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {attachments.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2">
           {attachments.map((file, index) => (

@@ -11,13 +11,15 @@ interface ChatHeaderProps {
   isConnected: boolean;
   onToggleSidebar: () => void;
   onInitiateCall?: () => void;
+  onClose?: () => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   conversation,
   isConnected,
   onToggleSidebar,
-  onInitiateCall
+  onInitiateCall,
+  onClose
 }) => {
   const isMobile = useIsMobile();
 
@@ -43,6 +45,16 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             className="mr-2 p-1 rounded-full hover:bg-gray-100 focus:outline-none"
           >
             <ArrowLeft size={20} className="text-ecole-primary" />
+          </button>
+        )}
+
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="mr-2 p-1 rounded-full hover:bg-gray-100 focus:outline-none"
+            title="Fermer la conversation"
+          >
+            <ArrowLeft size={20} className="text-ecole-meta" />
           </button>
         )}
 

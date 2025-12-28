@@ -1,13 +1,13 @@
 
 import React, { useState } from "react";
 import { User } from "@/types/chat";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,7 @@ const CreateDirectMessageModal: React.FC<CreateDirectMessageModalProps> = ({
             Recherchez un utilisateur pour démarrer une conversation.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="search-users">Rechercher un utilisateur</Label>
@@ -69,7 +69,7 @@ const CreateDirectMessageModal: React.FC<CreateDirectMessageModalProps> = ({
               autoFocus
             />
           </div>
-          
+
           <div className="border rounded-md max-h-60 overflow-y-auto bg-white">
             {filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
@@ -78,16 +78,16 @@ const CreateDirectMessageModal: React.FC<CreateDirectMessageModalProps> = ({
                   className="p-2 flex items-center hover:bg-gray-100 cursor-pointer"
                   onClick={() => handleSelectUser(user.id)}
                 >
-                  <Avatar 
-                    src={user.photo} 
-                    alt={user.name} 
-                    status={user.status} 
+                  <Avatar
+                    src={user.photo}
+                    alt={user.name}
+                    status={user.status}
                   />
                   <div className="ml-2">
-                    <div className="text-sm font-medium">{user.name}</div>
+                    <div className="text-sm  font-medium">{user.name}</div>
                     <div className="text-xs text-ecole-meta">
-                      {user.role === "teacher" ? "Professeur" : 
-                       user.role === "student" ? "Élève" : "Personnel"}
+                      {user.role === "teacher" ? "Professeur" :
+                        user.role === "student" ? "Élève" : "Personnel"}
                       {user.status === "offline" && user.lastSeen && (
                         <span className="ml-1">· Vu {new Date(user.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       )}

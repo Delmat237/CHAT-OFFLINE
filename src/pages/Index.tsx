@@ -84,7 +84,7 @@ const Index = () => {
               participants: conv.participants.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                photo: p.photo ? `${API_URL}/${p.photo}` : '',
+                photo: p.photo ? `${API_URL}/${p.photo}` : './backend/profile.jpg',
                 role: p.role,
                 status: p.status,
               })),
@@ -170,19 +170,22 @@ const Index = () => {
         status: 'sent',
         attachments: data.attachment ? [{
           id: `att-${data.id}`,
-          name: "Piece jointe",
-          url: `${API_URL}/${data.attachment}`,
+          name: data.attachment.split('-').slice(2).join('-') || "Pièce jointe",
+          url: `${API_URL}/uploads/${data.attachment}`,
           type: data.attachmentType || 'document',
           size: '?'
-        }] : []
+        }] : [],
+        isForwarded: data.isForwarded,
+        replyTo: data.replyTo
       };
 
       // Update conversations state
       setConversations(prev => prev.map(conv => {
         // Find the conversation with this user
-        if (conv.type === 'user' && conv.participants.some(p => p.id === data.senderId)) {
-          // Check if message already exists (deduplication)
-          const messageExists = conv.messages.some(m => m.id === messageToAdd.id);
+        if (conv.type === 'user' && conv.participants.some(p => String(p.id) === String(data.senderId))) {
+          // Check if message already exists (robust deduplication with string casting)
+          const messageIdStr = String(messageToAdd.id);
+          const messageExists = conv.messages.some(m => String(m.id) === messageIdStr);
           if (!messageExists) {
             return {
               ...conv,
@@ -218,15 +221,18 @@ const Index = () => {
           url: `${API_URL}/${data.attachment}`,
           type: data.attachmentType || 'document',
           size: '?'
-        }] : []
+        }] : [],
+        isForwarded: data.isForwarded,
+        replyTo: data.replyTo
       };
 
       // Update conversations state
       setConversations(prev => prev.map(conv => {
         // Find the group conversation
-        if (conv.type === 'group' && conv.id === data.groupId) {
-          // Check if message already exists (deduplication)
-          const messageExists = conv.messages.some(m => m.id === messageToAdd.id);
+        if (conv.type === 'group' && String(conv.id) === String(data.groupId)) {
+          // Check if message already exists (robust deduplication)
+          const messageIdStr = String(messageToAdd.id);
+          const messageExists = conv.messages.some(m => String(m.id) === messageIdStr);
           if (!messageExists) {
             return {
               ...conv,
@@ -285,6 +291,25 @@ const Index = () => {
 
       // Join the group socket room
       newSocket.emit('joinGroup', data.group.id);
+    });
+
+    newSocket.on("messageDeleted", (data) => {
+      console.log("Message deleted:", data);
+      setConversations(prev => prev.map(conv => {
+        // Find relevant conversation (private or group)
+        const isRelevant = (data.type === 'group' && conv.id === data.recipientId) ||
+          (data.type === 'user' && (conv.id === data.senderId || conv.id === data.recipientId));
+
+        if (isRelevant) {
+          return {
+            ...conv,
+            messages: conv.messages.filter(m => String(m.id) !== String(data.messageId)),
+            // If the last message was deleted, we should ideally update lastMessage too, 
+            // but for now we just filter the list for simplicity in the UI.
+          };
+        }
+        return conv;
+      }));
     });
 
     setSocket(newSocket);
@@ -353,7 +378,7 @@ const Index = () => {
               ? result.data.group.members.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                photo: p.photo ? `${API_URL}/${p.photo}` : '',
+                photo: p.photo ? `${API_URL}/${p.photo}` : './backend/profile.jpg',
                 role: p.role,
                 status: p.status,
               }))
@@ -374,11 +399,12 @@ const Index = () => {
   };
 
   // Handle sending a message
-  // Handle sending a message
   const handleSendMessage = async (
     conversationId: string,
     content: string,
-    attachments?: File[]
+    attachments?: File[],
+    isForwarded?: boolean,
+    replyTo?: { id: string; content: string; senderId: string; senderName: string }
   ) => {
     if (!currentUser) return;
 
@@ -427,19 +453,25 @@ const Index = () => {
           status: 'sent',
           attachments: savedMessage.attachment ? [{
             id: `att-${savedMessage.id}`,
-            name: "Piece jointe",
-            url: `${API_URL}/${savedMessage.attachment}`,
+            name: savedMessage.attachment.split('-').slice(2).join('-') || "Pièce jointe",
+            url: `${API_URL}/uploads/${savedMessage.attachment}`,
             type: savedMessage.attachmentType || 'document',
             size: '?'
-          }] : []
+          }] : [],
+          isForwarded: isForwarded,
+          replyTo: replyTo
         };
 
-        // Update UI
-        setConversations(prev => prev.map(conv =>
-          conv.id === conversationId
-            ? { ...conv, messages: [...conv.messages, newMessage], lastMessage: newMessage }
-            : conv
-        ));
+        // Update UI with deduplication
+        setConversations(prev => prev.map(conv => {
+          if (String(conv.id) === String(conversationId)) {
+            const messageIdStr = String(newMessage.id);
+            if (!conv.messages.some(m => String(m.id) === messageIdStr)) {
+              return { ...conv, messages: [...conv.messages, newMessage], lastMessage: newMessage };
+            }
+          }
+          return conv;
+        }));
 
         // Emit socket for real-time to others (if backend doesn't broadcast on API call)
         if (socket) {
@@ -448,7 +480,11 @@ const Index = () => {
             ...savedMessage,
             senderId: currentUser.id,
             // Add necessary fields for the receiver to understand context
-            ...(conversation.type === 'group' ? { groupId: conversation.id } : { recipientId: conversation.participants.find(p => p.id !== currentUser.id)?.id })
+            ...(conversation.type === 'group' ? { groupId: conversation.id } : { recipientId: conversation.participants.find(p => p.id !== currentUser.id)?.id }),
+            isForwarded: isForwarded,
+            replyTo: replyTo,
+            attachment: savedMessage.attachment,
+            attachmentType: savedMessage.attachmentType
           };
           socket.emit(eventName, payload);
         }
@@ -501,7 +537,7 @@ const Index = () => {
           name: name,
           participants: [...participants, currentUser].map(p => ({
             ...p,
-            photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/${p.photo}`) : ''
+            photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/${p.photo}`) : './backend/profile.jpg'
           })),
           messages: [],
           unreadCount: 0,
@@ -591,9 +627,41 @@ const Index = () => {
           conversation={selectedConversation}
           currentUser={currentUser || { id: "temp", name: "Chargement...", photo: "", role: "student", status: "offline" }}
           users={users}
+          conversations={conversations}
           isConnected={isConnected}
           onSendMessage={handleSendMessage}
           onToggleSidebar={toggleSidebar}
+          onDeleteMessage={async (messageId) => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+              const response = await fetch(`${API_URL}/api/messages/${messageId}`, {
+                method: "DELETE",
+                headers: {
+                  "Authorization": `Bearer ${token}`
+                }
+              });
+
+              if (response.ok) {
+                // Locally remove message from conversation
+                setConversations(prev => prev.map(conv => ({
+                  ...conv,
+                  messages: conv.messages.filter(m => String(m.id) !== String(messageId))
+                })));
+              } else {
+                console.error("Failed to delete message on server");
+                toast({
+                  title: "Erreur",
+                  description: "Impossible de supprimer le message sur le serveur",
+                  variant: "destructive"
+                });
+              }
+            } catch (error) {
+              console.error("Error deleting message:", error);
+            }
+          }}
+          onClose={() => setSelectedConversationId(null)}
         />
 
         <div className="hidden">

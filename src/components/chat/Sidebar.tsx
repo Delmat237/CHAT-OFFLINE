@@ -59,9 +59,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       return `📎 ${lastMessage.attachments[0].name}`;
     }
 
-    return lastMessage.content.length > 30
-      ? `${lastMessage.content.substring(0, 30)}...`
-      : lastMessage.content;
+    const content = lastMessage.content || "";
+    return content.length > 30
+      ? `${content.substring(0, 30)}...`
+      : content;
   };
 
   const formatTimestamp = (timestamp: string) => {

@@ -15,6 +15,13 @@ export interface Message {
   timestamp: string;
   status: "sent" | "pending" | "failed";
   attachments?: Attachment[];
+  isForwarded?: boolean;
+  replyTo?: {
+    id: string;
+    content: string;
+    senderId: string;
+    senderName: string;
+  };
 }
 
 export interface Attachment {
