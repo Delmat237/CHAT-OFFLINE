@@ -476,10 +476,71 @@ const getConversationsByRole = async (req, res) => {
   }
 };
 
+// Delete a message (soft delete)
+const deleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const message = await Message.findByPk(id);
+
+    if (!message) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Message not found'
+      });
+    }
+
+    // Check if the user is the sender (for now, only sender can delete for everyone)
+    if (message.senderId !== userId) {
+      return res.status(403).json({
+        status: 'fail',
+        message: 'You can only delete your own messages'
+      });
+    }
+
+    message.isDeleted = true;
+    await message.save();
+
+    // Emit socket event to notify other participants
+    const io = req.app.get('io');
+    if (io) {
+      const deletionPayload = {
+        messageId: id,
+        recipientId: message.recipientId,
+        senderId: message.senderId,
+        type: message.type
+      };
+
+      if (message.type === 'user') {
+        const partnerId = message.recipientId;
+        // Emit to both sender and recipient rooms
+        io.to(`user_${partnerId}`).emit('messageDeleted', deletionPayload);
+        io.to(`user_${userId}`).emit('messageDeleted', deletionPayload);
+      } else {
+        // Emit to group room
+        io.to(message.recipientId).emit('messageDeleted', deletionPayload);
+      }
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: null
+    });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to delete message'
+    });
+  }
+};
+
 module.exports = {
   sendMessage,
   getUserConversation,
   getGroupConversation,
   getAllConversations,
-  getConversationsByRole
+  getConversationsByRole,
+  deleteMessage
 };

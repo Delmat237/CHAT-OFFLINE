@@ -47,4 +47,7 @@ router.get('/conversations', protect, messageController.getAllConversations);
 // Get conversations by role
 router.get('/conversations/:role', protect, messageController.getConversationsByRole);
 
+// Delete message
+router.delete('/:id', protect, messageController.deleteMessage);
+
 module.exports = router;

@@ -23,7 +23,7 @@ const Message = sequelize.define('Message', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  attachments: {
+  attachment: {
     type: DataTypes.STRING,
     allowNull: true
   },

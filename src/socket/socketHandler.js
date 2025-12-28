@@ -100,35 +100,14 @@ const socketHandler = (io) => {
       try {
         const { recipientId, content, attachment } = data;
 
-        // Encrypt message content
-        const encryptedContent = content ? encryptMessage(content) : null;
-
-        // Create message data
-        const messageData = {
-          type: 'user',
-          senderId: userId,
-          recipientId,
-          content: encryptedContent,
-          attachment,
-          sentDate: new Date(),
-          sentTime: new Date().toTimeString().split(' ')[0]
-        };
-
-        // Save message to database
-        try {
-          await Message.create(messageData);
-        } catch (dbError) {
-          console.error('Failed to save private message:', dbError);
-        }
-
         // Find the recipient's socket
         const recipientSocketId = activeUsers.get(recipientId);
 
         // If recipient is online, send them the message
         if (recipientSocketId) {
           io.to(recipientSocketId).emit('privateMessage', {
-            ...messageData,
-            content, // Send the original content to the recipient
+            ...data,
+            senderId: userId,
             senderName: socket.user.name,
             senderPhoto: socket.user.photo
           });
@@ -137,7 +116,7 @@ const socketHandler = (io) => {
         // Send confirmation back to sender
         socket.emit('messageSent', {
           success: true,
-          message: messageData
+          message: data
         });
       } catch (error) {
         console.error('Socket private message error:', error);
@@ -153,40 +132,18 @@ const socketHandler = (io) => {
       try {
         const { groupId, content, attachment } = data;
 
-        // Encrypt message content
-        const encryptedContent = content ? encryptMessage(content) : null;
-
-        // Create message data
-        const messageData = {
-          type: 'group',
-          senderId: userId,
-          recipientId: groupId,
-          content: encryptedContent,
-          attachment,
-          sentDate: new Date(),
-          sentTime: new Date().toTimeString().split(' ')[0]
-        };
-
-        // Save message to database
-        try {
-          await Message.create(messageData);
-        } catch (dbError) {
-          console.error('Failed to save group message:', dbError);
-        }
-
         // Broadcast to all group members
         socket.to(groupId).emit('groupMessage', {
-          ...messageData,
-          content, // Send the original content
+          ...data,
+          senderId: userId,
           senderName: socket.user.name,
-          senderPhoto: socket.user.photo,
-          groupId: groupId
+          senderPhoto: socket.user.photo
         });
 
         // Send confirmation back to sender
         socket.emit('messageSent', {
           success: true,
-          message: messageData
+          message: data
         });
       } catch (error) {
         console.error('Socket group message error:', error);
