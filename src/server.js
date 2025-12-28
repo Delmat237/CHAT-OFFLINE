@@ -40,6 +40,9 @@ app.use(errorHandler);
 // Socket.io initialization
 socketHandler(io);
 
+// Make io available to routes/controllers
+app.set('io', io);
+
 // Database connection
 db.authenticate()
   .then(() => {

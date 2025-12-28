@@ -29,7 +29,7 @@ const createGroup = async (req, res) => {
           isAdmin: false
         });
       });
-      
+
       await Promise.all(memberPromises);
     }
 
@@ -40,6 +40,18 @@ const createGroup = async (req, res) => {
         attributes: ['id', 'name', 'photo', 'status', 'role']
       }]
     });
+
+    // Emit socket event to all group members
+    const io = req.app.get('io');
+    if (io) {
+      const allMembers = [createdBy, ...(members || [])];
+      allMembers.forEach(memberId => {
+        io.to(`user_${memberId}`).emit('groupCreated', {
+          group: groupWithMembers
+        });
+      });
+      console.log(`Emitted groupCreated event to ${allMembers.length} members`);
+    }
 
     res.status(201).json({
       status: 'success',
@@ -145,7 +157,7 @@ const addGroupMembers = async (req, res) => {
           isAdmin: false
         });
       }
-      
+
       return null;
     });
 
@@ -289,7 +301,7 @@ const searchGroups = async (req, res) => {
   try {
     const { query } = req.query;
     const userId = req.user.id;
-    
+
     if (!query) {
       return res.status(400).json({
         status: 'fail',

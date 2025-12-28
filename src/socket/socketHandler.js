@@ -48,6 +48,9 @@ const socketHandler = (io) => {
     // Ajouter l'utilisateur dans le map activeUsers avec le userId comme clé
     activeUsers.set(userId, socket.id);
 
+    // Join user-specific room for targeted notifications
+    socket.join(`user_${userId}`);
+
     // Quand un utilisateur se déconnecte
     socket.on('disconnect', () => {
       console.log(`User ${username} disconnected`);
@@ -125,7 +128,9 @@ const socketHandler = (io) => {
         if (recipientSocketId) {
           io.to(recipientSocketId).emit('privateMessage', {
             ...messageData,
-            content // Send the original content to the recipient
+            content, // Send the original content to the recipient
+            senderName: socket.user.name,
+            senderPhoto: socket.user.photo
           });
         }
 
@@ -172,7 +177,10 @@ const socketHandler = (io) => {
         // Broadcast to all group members
         socket.to(groupId).emit('groupMessage', {
           ...messageData,
-          content // Send the original content
+          content, // Send the original content
+          senderName: socket.user.name,
+          senderPhoto: socket.user.photo,
+          groupId: groupId
         });
 
         // Send confirmation back to sender
