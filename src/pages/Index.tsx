@@ -84,13 +84,13 @@ const Index = () => {
               participants: conv.participants.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                photo: p.photo,
+                photo: p.photo ? `${API_URL}/${p.photo}` : '',
                 role: p.role,
                 status: p.status,
               })),
               messages: [], // Messages will be fetched on selection
               unreadCount: conv.unreadCount || 0,
-              avatar: conv.type === 'group' ? conv.avatar : conv.participants.find((p: any) => p.id !== currentUser.id)?.photo || '',
+              avatar: conv.type === 'group' ? (conv.avatar ? `${API_URL}/${conv.avatar}` : '') : (conv.participants.find((p: any) => p.id !== currentUser.id)?.photo ? `${API_URL}/${conv.participants.find((p: any) => p.id !== currentUser.id)?.photo}` : ''),
               lastMessage: conv.lastMessage ? {
                 id: conv.lastMessage.id,
                 content: conv.lastMessage.content,
@@ -154,18 +154,90 @@ const Index = () => {
 
     newSocket.on("privateMessage", (data) => {
       console.log("New private message:", data);
+
+      // Show notification with sender name
       toast({
-        title: `Nouveau message de ${data.from}`,
-        description: data.message,
+        title: `Nouveau message de ${data.senderName || 'Un utilisateur'}`,
+        description: data.content,
       });
+
+      // Add message to conversation in real-time
+      const messageToAdd: Message = {
+        id: data.id || `msg-${Date.now()}`,
+        content: data.content,
+        senderId: data.senderId,
+        timestamp: `${data.sentDate}T${data.sentTime}`,
+        status: 'sent',
+        attachments: data.attachment ? [{
+          id: `att-${data.id}`,
+          name: "Piece jointe",
+          url: `${API_URL}/${data.attachment}`,
+          type: data.attachmentType || 'document',
+          size: '?'
+        }] : []
+      };
+
+      // Update conversations state
+      setConversations(prev => prev.map(conv => {
+        // Find the conversation with this user
+        if (conv.type === 'user' && conv.participants.some(p => p.id === data.senderId)) {
+          // Check if message already exists (deduplication)
+          const messageExists = conv.messages.some(m => m.id === messageToAdd.id);
+          if (!messageExists) {
+            return {
+              ...conv,
+              messages: [...conv.messages, messageToAdd],
+              lastMessage: messageToAdd,
+              unreadCount: selectedConversationId === conv.id ? 0 : (conv.unreadCount || 0) + 1
+            };
+          }
+        }
+        return conv;
+      }));
     });
 
     newSocket.on("groupMessage", (data) => {
       console.log("New group message:", data);
+
+      // Show notification with sender name and group context
       toast({
-        title: `Nouveau message dans le groupe`,
-        description: data.message,
+        title: `Nouveau message de ${data.senderName || 'Un membre'} dans le groupe`,
+        description: data.content,
       });
+
+      // Add message to group conversation in real-time
+      const messageToAdd: Message = {
+        id: data.id || `msg-${Date.now()}`,
+        content: data.content,
+        senderId: data.senderId,
+        timestamp: `${data.sentDate}T${data.sentTime}`,
+        status: 'sent',
+        attachments: data.attachment ? [{
+          id: `att-${data.id}`,
+          name: "Piece jointe",
+          url: `${API_URL}/${data.attachment}`,
+          type: data.attachmentType || 'document',
+          size: '?'
+        }] : []
+      };
+
+      // Update conversations state
+      setConversations(prev => prev.map(conv => {
+        // Find the group conversation
+        if (conv.type === 'group' && conv.id === data.groupId) {
+          // Check if message already exists (deduplication)
+          const messageExists = conv.messages.some(m => m.id === messageToAdd.id);
+          if (!messageExists) {
+            return {
+              ...conv,
+              messages: [...conv.messages, messageToAdd],
+              lastMessage: messageToAdd,
+              unreadCount: selectedConversationId === conv.id ? 0 : (conv.unreadCount || 0) + 1
+            };
+          }
+        }
+        return conv;
+      }));
     });
 
     newSocket.on("userStatus", (data) => {
@@ -176,6 +248,43 @@ const Index = () => {
           variant: "default",
         });
       }
+    });
+
+    newSocket.on("groupCreated", (data) => {
+      console.log("New group created:", data);
+
+      // Add the new group to conversations list
+      const newGroup: Conversation = {
+        id: data.group.id,
+        type: "group",
+        name: data.group.name,
+        participants: data.group.Users.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          photo: u.photo ? `${API_URL}/${u.photo}` : '',
+          role: u.role,
+          status: u.status,
+        })),
+        messages: [],
+        unreadCount: 0,
+        avatar: data.group.avatar ? `${API_URL}/${data.group.avatar}` : '',
+      };
+
+      // Check if group already exists (avoid duplicates)
+      setConversations(prev => {
+        const exists = prev.some(c => c.id === newGroup.id);
+        if (!exists) {
+          toast({
+            title: "Nouveau groupe",
+            description: `Vous avez été ajouté au groupe "${newGroup.name}"`,
+          });
+          return [...prev, newGroup];
+        }
+        return prev;
+      });
+
+      // Join the group socket room
+      newSocket.emit('joinGroup', data.group.id);
     });
 
     setSocket(newSocket);
@@ -244,7 +353,7 @@ const Index = () => {
               ? result.data.group.members.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                photo: p.photo,
+                photo: p.photo ? `${API_URL}/${p.photo}` : '',
                 role: p.role,
                 status: p.status,
               }))
@@ -252,6 +361,12 @@ const Index = () => {
             unreadCount: 0
           };
         }));
+
+        // Join group socket room if this is a group conversation
+        if (conversation.type === 'group' && socket) {
+          socket.emit('joinGroup', id);
+          console.log(`Joined group room: ${id}`);
+        }
       }
     } catch (e) {
       console.error("Failed to fetch details", e);
@@ -368,18 +483,39 @@ const Index = () => {
 
       if (response.ok) {
         const result = await response.json();
-        // Add to local state
+        console.log('Group creation response:', result);
+
+        // Extract the real group ID from the backend response
+        const groupId = result.data?.group?.id;
+
+        if (!groupId) {
+          console.error('No group ID in response:', result);
+          toast({ title: "Erreur", description: "ID de groupe manquant dans la réponse", variant: "destructive" });
+          return;
+        }
+
+        // Add to local state with the real group ID
         const newGroup: Conversation = {
-          id: result.data?.groupId || `group-${Date.now()}`,
+          id: groupId,  // Use the real ID from backend
           type: "group",
           name: name,
-          participants: [...participants, currentUser],
+          participants: [...participants, currentUser].map(p => ({
+            ...p,
+            photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/${p.photo}`) : ''
+          })),
           messages: [],
           unreadCount: 0,
           avatar: "",
         };
         setConversations([...conversations, newGroup]);
         setSelectedConversationId(newGroup.id);
+
+        // Join the group socket room immediately
+        if (socket) {
+          socket.emit('joinGroup', groupId);
+          console.log(`Joined group room: ${groupId}`);
+        }
+
         toast({ title: "Groupe créé", description: `Le groupe "${name}" a été créé.` });
       } else {
         toast({ title: "Erreur", description: "Impossible de créer le groupe", variant: "destructive" });
