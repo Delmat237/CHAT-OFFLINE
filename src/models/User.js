@@ -24,17 +24,30 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  pseudo: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
+  },
   photo: {
     type: DataTypes.STRING,
     defaultValue: 'default.jpg'
   },
   role: {
-    type: DataTypes.ENUM('teacher', 'student', 'worker'),
+    type: DataTypes.ENUM('teacher', 'student', 'worker', 'admin'),
     allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('online', 'offline'),
+    type: DataTypes.ENUM('online', 'busy', 'away', 'offline'),
     defaultValue: 'offline'
+  },
+  settings: {
+    type: DataTypes.JSON,
+    defaultValue: {
+      darkMode: false,
+      notifications: true,
+      privacy: true
+    }
   },
   lastSeen: {
     type: DataTypes.DATE,
@@ -59,7 +72,7 @@ const User = sequelize.define('User', {
 });
 
 // Instance method to compare passwords
-User.prototype.comparePassword = async function(candidatePassword) {
+User.prototype.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

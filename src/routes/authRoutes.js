@@ -17,8 +17,9 @@ router.post(
       .isLength({ min: 8 })
       .withMessage('Password must be at least 8 characters long'),
     body('role')
-      .isIn(['teacher', 'student', 'worker'])
-      .withMessage('Role must be teacher, student, or worker')
+      .isIn(['teacher', 'student', 'worker', 'admin'])
+      .withMessage('Role must be teacher, student, worker or admin'),
+    body('pseudo').optional().isString().withMessage('Pseudo must be a string')
   ],
   authController.register
 );

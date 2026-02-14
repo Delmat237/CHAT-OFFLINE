@@ -15,10 +15,18 @@ const updateProfile = async (req, res) => {
     }
 
     const user = req.user;
-    const { name } = req.body;
+    const { name, pseudo, settings, status } = req.body;
 
     // Update user data
     user.name = name || user.name;
+    user.pseudo = pseudo || user.pseudo;
+    user.status = status || user.status;
+
+    if (settings) {
+      // Merge settings if it's an object, or replace if needed
+      user.settings = { ...user.settings, ...settings };
+    }
+
     if (req.file) {
       user.photo = req.file.filename;
     }
@@ -31,10 +39,12 @@ const updateProfile = async (req, res) => {
         user: {
           id: user.id,
           name: user.name,
+          pseudo: user.pseudo,
           email: user.email,
           role: user.role,
           photo: user.photo,
-          status: user.status
+          status: user.status,
+          settings: user.settings
         }
       }
     });
@@ -51,7 +61,7 @@ const updateProfile = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({
-      attributes: ['id', 'name', 'email', 'role', 'photo', 'status', 'lastSeen'],
+      attributes: ['id', 'name', 'pseudo', 'email', 'role', 'photo', 'status', 'lastSeen'],
       where: {
         id: { [Op.ne]: req.user.id }
       }
@@ -75,17 +85,17 @@ const getAllUsers = async (req, res) => {
 const getUsersByRole = async (req, res) => {
   try {
     const { role } = req.params;
-    
+
     // Validate role
-    if (!['teacher', 'student', 'worker'].includes(role)) {
+    if (!['teacher', 'student', 'worker', 'admin'].includes(role)) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Invalid role. Role must be teacher, student, or worker.'
+        message: 'Invalid role. Role must be teacher, student, worker or admin.'
       });
     }
 
     const users = await User.findAll({
-      attributes: ['id', 'name', 'email', 'photo', 'status', 'lastSeen'],
+      attributes: ['id', 'name', 'pseudo', 'email', 'photo', 'status', 'lastSeen'],
       where: {
         role,
         id: { [Op.ne]: req.user.id }
@@ -110,7 +120,7 @@ const getUsersByRole = async (req, res) => {
 const searchUsers = async (req, res) => {
   try {
     const { query } = req.query;
-    
+
     if (!query) {
       return res.status(400).json({
         status: 'fail',
@@ -119,12 +129,13 @@ const searchUsers = async (req, res) => {
     }
 
     const users = await User.findAll({
-      attributes: ['id', 'name', 'email', 'role', 'photo', 'status', 'lastSeen'],
+      attributes: ['id', 'name', 'pseudo', 'email', 'role', 'photo', 'status', 'lastSeen'],
       where: {
         [Op.and]: [
           {
             [Op.or]: [
               { name: { [Op.like]: `%${query}%` } },
+              { pseudo: { [Op.like]: `%${query}%` } },
               { email: { [Op.like]: `%${query}%` } }
             ]
           },

@@ -21,8 +21,8 @@ const register = async (req, res) => {
       });
     }
 
-    const { name, email, password, role } = req.body;
-    
+    const { name, email, password, role, pseudo } = req.body;
+
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -38,6 +38,7 @@ const register = async (req, res) => {
       email,
       password,
       role,
+      pseudo,
       photo: req.file ? req.file.filename : 'default.jpg'
     });
 
@@ -52,10 +53,12 @@ const register = async (req, res) => {
         user: {
           id: user.id,
           name: user.name,
+          pseudo: user.pseudo,
           email: user.email,
           role: user.role,
           photo: user.photo,
-          status: user.status
+          status: user.status,
+          settings: user.settings
         }
       }
     });
@@ -116,10 +119,12 @@ const login = async (req, res) => {
         user: {
           id: user.id,
           name: user.name,
+          pseudo: user.pseudo,
           email: user.email,
           role: user.role,
           photo: user.photo,
-          status: user.status
+          status: user.status,
+          settings: user.settings
         }
       }
     });
@@ -206,10 +211,12 @@ const getCurrentUser = async (req, res) => {
         user: {
           id: user.id,
           name: user.name,
+          pseudo: user.pseudo,
           email: user.email,
           role: user.role,
           photo: user.photo,
-          status: user.status
+          status: user.status,
+          settings: user.settings
         }
       }
     });

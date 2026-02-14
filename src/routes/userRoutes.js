@@ -12,7 +12,10 @@ router.patch(
   protect,
   upload.single('photo'),
   [
-    body('name').optional().notEmpty().withMessage('Name cannot be empty')
+    body('name').optional().notEmpty().withMessage('Name cannot be empty'),
+    body('pseudo').optional().isString().withMessage('Pseudo must be a string'),
+    body('status').optional().isIn(['online', 'busy', 'away', 'offline']).withMessage('Invalid status'),
+    body('settings').optional().isObject().withMessage('Settings must be an object')
   ],
   userController.updateProfile
 );
