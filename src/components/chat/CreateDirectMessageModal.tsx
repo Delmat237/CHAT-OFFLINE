@@ -19,15 +19,22 @@ interface CreateDirectMessageModalProps {
   users: User[];
   currentUser: User;
   onStartConversation: (userId: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const CreateDirectMessageModal: React.FC<CreateDirectMessageModalProps> = ({
   users,
   currentUser,
   onStartConversation,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = externalOnOpenChange !== undefined ? externalOnOpenChange : setInternalOpen;
 
   const filteredUsers = users.filter(
     (user) =>
@@ -44,12 +51,14 @@ const CreateDirectMessageModal: React.FC<CreateDirectMessageModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full bg-ecole-primary text-white font-medium py-2 rounded-md flex items-center justify-center hover:bg-ecole-primary/90">
-          <MessageSquare size={18} className="mr-2" />
-          Nouvelle conversation
-        </Button>
-      </DialogTrigger>
+      {externalOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button className="w-full bg-ecole-primary text-white font-medium py-2 rounded-md flex items-center justify-center hover:bg-ecole-primary/90">
+            <MessageSquare size={18} className="mr-2" />
+            Nouvelle conversation
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Démarrer une conversation</DialogTitle>

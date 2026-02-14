@@ -1,6 +1,7 @@
 
 import React from "react";
 import { MoreVertical, Copy, Reply, Forward, Trash2, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -18,6 +19,7 @@ interface MessageActionsProps {
     onForward: () => void;
     onDelete: () => void;
     onSelect: () => void;
+    compact?: boolean;
 }
 
 const MessageActions: React.FC<MessageActionsProps> = ({
@@ -28,6 +30,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
     onForward,
     onDelete,
     onSelect,
+    compact = false,
 }) => {
     return (
         <DropdownMenu>
@@ -35,9 +38,12 @@ const MessageActions: React.FC<MessageActionsProps> = ({
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className={cn(
+                        "h-8 w-8 p-0 transition-opacity",
+                        compact ? "opacity-40 hover:opacity-100 hover:bg-black/20" : "opacity-0 group-hover:opacity-100"
+                    )}
                 >
-                    <MoreVertical className="h-4 w-4" />
+                    <MoreVertical className={cn("h-4 w-4", compact ? "text-gray-400" : "")} />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">

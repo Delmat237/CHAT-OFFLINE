@@ -74,6 +74,19 @@ export default {
 					otherMessage: '#FFF8E1', // Blanc cassé
 					offline: '#EF5350', // Rouge discret
 				},
+				// WhatsApp specific colors
+				wa: {
+					bg: 'var(--wa-bg)',
+					panel: 'var(--wa-panel)',
+					'panel-light': '#f0f2f5',
+					primary: 'var(--wa-primary)',
+					secondary: 'var(--wa-secondary)',
+					'message-in': 'var(--wa-message-in)',
+					'message-out': 'var(--wa-message-out)',
+					'check-blue': 'var(--wa-check-blue)',
+					text: 'var(--wa-text)',
+					'text-secondary': 'var(--wa-text-secondary)',
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

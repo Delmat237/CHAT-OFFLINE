@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
 @tailwind base;
@@ -45,6 +44,17 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* OnDjoss Light Mode */
+    --wa-bg: #f5f6f7;
+    --wa-panel: #ffffff;
+    --wa-primary: #00d2ff;
+    --wa-secondary: #707579;
+    --wa-message-in: #ffffff;
+    --wa-message-out: #effdde;
+    --wa-check-blue: #2bb4f6;
+    --wa-text: #222222;
+    --wa-text-secondary: #707579;
   }
 
   .dark {
@@ -75,7 +85,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
-    
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -84,6 +94,17 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* OnDjoss Dark Mode */
+    --wa-bg: #0e1621;
+    --wa-panel: #17212b;
+    --wa-primary: #00d2ff;
+    --wa-secondary: #8696a0;
+    --wa-message-in: #182533;
+    --wa-message-out: #2b5278;
+    --wa-check-blue: #2bb4f6;
+    --wa-text: #f5f6f7;
+    --wa-text-secondary: #7f91a4;
   }
 }
 
@@ -129,5 +150,5 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #EF5350;
+  background-color: var(--wa-primary);
 }

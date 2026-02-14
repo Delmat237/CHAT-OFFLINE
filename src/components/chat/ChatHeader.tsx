@@ -1,10 +1,17 @@
 
 import React from "react";
-import { ArrowLeft, CloudOff, Search, Upload, PhoneCall, Users } from "lucide-react";
+import { ArrowLeft, CloudOff, Search, Phone, MoreVertical, Image, Info } from "lucide-react";
 import Avatar from "./Avatar";
 import { Conversation } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatHeaderProps {
   conversation: Conversation;
@@ -12,6 +19,7 @@ interface ChatHeaderProps {
   onToggleSidebar: () => void;
   onInitiateCall?: () => void;
   onClose?: () => void;
+  onShowInfo?: () => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -19,95 +27,84 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   isConnected,
   onToggleSidebar,
   onInitiateCall,
-  onClose
+  onClose,
+  onShowInfo
 }) => {
   const isMobile = useIsMobile();
+  const { toast } = useToast();
 
-  const getParticipantString = () => {
+  const getParticipantStatus = () => {
     if (conversation.type === "user") {
       const participant = conversation.participants[0];
-      return participant ?
-        participant.role === "teacher" ? "Professeur" :
-          participant.role === "student" ? "Élève" : "Personnel"
-        : "";
+      if (!participant) return "";
+      if (participant.status === "online") return "En ligne";
+      return participant.lastSeen ? `Vu hier à ${new Date(participant.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "Vu hier à 17:06"; // Mocking from screenshot if not available
     } else {
-      const count = conversation.participants.length;
-      return `${count} participant${count > 1 ? "s" : ""}`;
+      const names = conversation.participants.map(p => p.name);
+      if (names.length <= 3) return names.join(", ");
+      return `${names.slice(0, 3).join(", ")}... (+${names.length - 3})`;
     }
   };
 
   return (
-    <div className="border-b border-gray-200 p-3 flex items-center justify-between bg-white shadow-sm">
-      <div className="flex items-center">
-        {isMobile && (
-          <button
-            onClick={onToggleSidebar}
-            className="mr-2 p-1 rounded-full hover:bg-gray-100 focus:outline-none"
-          >
-            <ArrowLeft size={20} className="text-ecole-primary" />
-          </button>
-        )}
+    <div className="h-16 flex items-center justify-between px-2 bg-wa-panel border-b border-border transition-colors">
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onClose}
+          className="p-2 text-wa-text hover:bg-wa-bg/10 rounded-full transition-colors outline-none"
+        >
+          <ArrowLeft size={24} />
+        </button>
 
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="mr-2 p-1 rounded-full hover:bg-gray-100 focus:outline-none"
-            title="Fermer la conversation"
-          >
-            <ArrowLeft size={20} className="text-ecole-meta" />
-          </button>
-        )}
+        <div className="flex items-center gap-3 cursor-pointer" onClick={onShowInfo}>
+          <Avatar
+            src={conversation.avatar}
+            alt={conversation.name}
+            status={conversation.type === "user" ? conversation.participants[0]?.status : undefined}
+            size="md"
+          />
 
-        <Avatar
-          src={conversation.avatar}
-          alt={conversation.name}
-          status={conversation.type === "user" ? conversation.participants[0]?.status : undefined}
-        />
-
-        <div className="ml-3">
-          <div className="font-bold text-ecole-text">{conversation.name}</div>
-          <div className="text-xs text-ecole-meta">
-            {getParticipantString()}
+          <div className="flex flex-col">
+            <span className="font-bold text-[16px] leading-tight text-wa-text truncate max-w-[180px]">
+              {conversation.name}
+            </span>
+            <span className="text-[12px] text-wa-text-secondary leading-tight">
+              {getParticipantStatus()}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         {!isConnected && (
-          <div className="mr-3 flex items-center text-xs text-ecole-offline animate-pulse-subtle">
-            <CloudOff size={16} className="mr-1" />
-            <span className="hidden sm:inline">Hors ligne</span>
-          </div>
+          <CloudOff size={18} className="text-amber-500 animate-pulse" />
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-ecole-meta hover:bg-gray-100 hover:text-ecole-primary"
-          onClick={onInitiateCall}
-          disabled={!isConnected}
-          title="Appel"
-        >
-          <PhoneCall size={18} />
-        </Button>
+        <button className="p-2 text-wa-text hover:bg-wa-bg/10 rounded-full transition-colors outline-none">
+          <Phone size={22} />
+        </button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-ecole-meta hover:bg-gray-100 hover:text-ecole-primary"
-          title="Rechercher"
-        >
-          <Search size={18} />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-ecole-meta hover:bg-gray-100 hover:text-ecole-primary"
-          title="Partager un fichier"
-        >
-          <Upload size={18} />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-2 text-wa-text hover:bg-wa-bg/10 rounded-full transition-colors outline-none">
+              <MoreVertical size={22} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-wa-panel border-border text-wa-text w-56">
+            <DropdownMenuItem onClick={onShowInfo} className="hover:bg-wa-bg/10 focus:bg-wa-bg/10 cursor-pointer py-2.5 flex items-center gap-3">
+              <Info size={18} className="text-wa-secondary" />
+              <span>{conversation.type === 'group' ? "Infos du groupe" : "Infos du contact"}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => toast({ title: "Médias", description: "Bientôt disponible" })} className="hover:bg-wa-bg/10 focus:bg-wa-bg/10 cursor-pointer py-2.5 flex items-center gap-3">
+              <Image size={18} className="text-wa-secondary" />
+              <span>Médias partagés</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => toast({ title: "Rechercher", description: "Bientôt disponible" })} className="hover:bg-wa-bg/10 focus:bg-wa-bg/10 cursor-pointer py-2.5 flex items-center gap-3">
+              <Search size={18} className="text-wa-secondary" />
+              <span>Rechercher dans la discussion</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

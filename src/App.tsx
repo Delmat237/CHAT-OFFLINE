@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginForm from "@/components/auth/login-form"
 import RegisterForm from "@/components/auth/register-form";
+import ForgotPassword from "@/components/auth/forgot-password";
 
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<LoginForm />} />
           <Route path="/register" element={<RegisterForm />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/chat" element={<Index />} />
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

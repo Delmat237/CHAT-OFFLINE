@@ -3,8 +3,8 @@ export interface User {
   id: string;
   name: string;
   photo?: string;
-  status: "online" | "offline";
-  role: "student" | "teacher" | "staff";
+  status: "online" | "offline" | "busy" | "away";
+  role: "student" | "teacher" | "staff" | "admin" | "worker";
   lastSeen?: string;
 }
 

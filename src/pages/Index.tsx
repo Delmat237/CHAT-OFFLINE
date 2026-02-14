@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect } from "react";
-import ThemeToggle from "@/components/chat/ThemeToggle";
 import Sidebar from "@/components/chat/Sidebar";
 import ChatArea from "@/components/chat/ChatArea";
+import SideDrawer from "@/components/chat/SideDrawer";
 import { Conversation, Message, User } from "@/types/chat";
+import SettingsView from "@/components/chat/SettingsView";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import io, { Socket } from "socket.io-client";
 import { API_URL } from "@/lib/config";
 import { useNavigate } from "react-router-dom";
+import { Menu, Search, MessageSquare, Users, Radio, Phone, User as UserIcon, Edit2, MoreVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const Index = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -16,11 +19,16 @@ const Index = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showCreateDM, setShowCreateDM] = useState(false);
 
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"contacts" | "talks" | "chats" | "stories" | "appels">("chats");
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
@@ -48,7 +56,9 @@ const Index = () => {
           if (result.status === "success" && Array.isArray(result.data.users)) {
             const processedUsers = result.data.users.map((u: any) => ({
               ...u,
-              photo: u.photo ? (u.photo.startsWith('http') ? u.photo : `${API_URL}/${u.photo}`) : `${API_URL}/default.jpg`
+              role: u.role || "student",
+              status: u.status || "offline",
+              photo: u.photo ? (u.photo.startsWith('http') ? u.photo : `${API_URL}/uploads/${u.photo}`) : `${API_URL}/default.jpg`
             }));
             setUsers(processedUsers);
           }
@@ -90,18 +100,18 @@ const Index = () => {
               participants: conv.participants.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/${p.photo}`) : `${API_URL}/default.jpg`,
-                role: p.role,
-                status: p.status,
+                photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/uploads/${p.photo}`) : `${API_URL}/default.jpg`,
+                role: p.role || "student",
+                status: p.status || "offline",
               })),
               messages: [], // Messages will be fetched on selection
               unreadCount: conv.unreadCount || 0,
               avatar: conv.type === 'group'
-                ? (conv.avatar ? (conv.avatar.startsWith('http') ? conv.avatar : `${API_URL}/${conv.avatar}`) : '')
+                ? (conv.avatar ? (conv.avatar.startsWith('http') ? conv.avatar : `${API_URL}/uploads/${conv.avatar}`) : `${API_URL}/group.png`)
                 : (() => {
                   const otherParticipant = conv.participants.find((p: any) => String(p.id) !== String(currentUser.id));
                   const photo = otherParticipant?.photo;
-                  return photo ? (photo.startsWith('http') ? photo : `${API_URL}/${photo}`) : `${API_URL}/default.jpg`;
+                  return photo ? (photo.startsWith('http') ? photo : `${API_URL}/uploads/${photo}`) : `${API_URL}/default.jpg`;
                 })(),
               lastMessage: conv.lastMessage ? {
                 id: conv.lastMessage.id,
@@ -280,8 +290,8 @@ const Index = () => {
           id: u.id,
           name: u.name,
           photo: u.photo ? `${API_URL}/${u.photo}` : '',
-          role: u.role,
-          status: u.status,
+          role: u.role || "student",
+          status: u.status || "offline",
         })),
         messages: [],
         unreadCount: 0,
@@ -346,6 +356,7 @@ const Index = () => {
   // Handle selecting a conversation
   const handleSelectConversation = async (id: string) => {
     setSelectedConversationId(id);
+    setShowSettings(false);
 
     // Fetch full details
     const conversation = conversations.find(c => c.id === id);
@@ -398,7 +409,8 @@ const Index = () => {
               id: result.data.user.id,
               name: result.data.user.name,
               photo: updatedAvatar,
-              status: result.data.user.status,
+              role: result.data.user.role || "student",
+              status: result.data.user.status || "offline",
               lastSeen: result.data.user.lastSeen
             }];
           } else if (c.type === 'group' && result.data.group?.members) {
@@ -406,8 +418,8 @@ const Index = () => {
               id: p.id,
               name: p.name,
               photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/${p.photo}`) : `${API_URL}/default.jpg`,
-              role: p.role,
-              status: p.status,
+              role: p.role || "student",
+              status: p.status || "offline",
             }));
           }
 
@@ -571,11 +583,11 @@ const Index = () => {
           name: name,
           participants: [...participants, currentUser].map(p => ({
             ...p,
-            photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/${p.photo}`) : './backend/profile.jpg'
+            photo: p.photo ? (p.photo.startsWith('http') ? p.photo : `${API_URL}/uploads/${p.photo}`) : `${API_URL}/default.jpg`
           })),
           messages: [],
           unreadCount: 0,
-          avatar: "",
+          avatar: `${API_URL}/group.png`,
         };
         setConversations([...conversations, newGroup]);
         setSelectedConversationId(newGroup.id);
@@ -594,6 +606,102 @@ const Index = () => {
       console.error(e);
       toast({ title: "Erreur", description: "Erreur réseau", variant: "destructive" });
     }
+  };
+
+  const handleAddGroupMembers = async (groupId: string, participants: User[]) => {
+    const token = localStorage.getItem("token");
+    if (!token || !currentUser) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/groups/${groupId}/members`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          members: participants.map(p => p.id)
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const updatedGroup = result.data.group;
+
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === groupId) {
+            return {
+              ...conv,
+              participants: updatedGroup.Users.map((u: any) => ({
+                ...u,
+                photo: u.photo ? (u.photo.startsWith('http') ? u.photo : `${API_URL}/uploads/${u.photo}`) : `${API_URL}/default.jpg`
+              }))
+            };
+          }
+          return conv;
+        }));
+
+        toast({ title: "Succès", description: "Membres ajoutés avec succès" });
+      } else {
+        const error = await response.json();
+        toast({ title: "Erreur", description: error.message || "Échec de l'ajout", variant: "destructive" });
+      }
+    } catch (e) {
+      console.error("Error adding members", e);
+      toast({ title: "Erreur", description: "Erreur réseau", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveGroupMember = async (groupId: string, memberId: string) => {
+    const token = localStorage.getItem("token");
+    if (!token || !currentUser) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/groups/${groupId}/members/${memberId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const updatedGroup = result.data.group;
+
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === groupId) {
+            return {
+              ...conv,
+              participants: updatedGroup.Users.map((u: any) => ({
+                ...u,
+                photo: u.photo ? (u.photo.startsWith('http') ? u.photo : `${API_URL}/uploads/${u.photo}`) : `${API_URL}/default.jpg`
+              }))
+            };
+          }
+          return conv;
+        }));
+
+        toast({ title: "Succès", description: "Membre retiré avec succès" });
+      } else {
+        const error = await response.json();
+        toast({ title: "Erreur", description: error.message || "Échec du retrait", variant: "destructive" });
+      }
+    } catch (e) {
+      console.error("Error removing member", e);
+      toast({ title: "Erreur", description: "Erreur réseau", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    setConversations(prev => prev.map(conv => {
+      if (selectedConversationId && conv.id === selectedConversationId) {
+        return {
+          ...conv,
+          messages: conv.messages.filter(m => m.id !== messageId)
+        };
+      }
+      return conv;
+    }));
   };
 
   // Handle starting a direct message conversation
@@ -637,75 +745,148 @@ const Index = () => {
     (conv) => conv.id === selectedConversationId
   ) || null;
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/");
+  };
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50">
-      <Sidebar
-        users={users}
-        conversations={conversations}
+    <div className="h-screen flex flex-col overflow-hidden bg-wa-bg font-roboto">
+      <SideDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
         currentUser={currentUser || { id: "temp", name: "Chargement...", photo: "", role: "student", status: "offline" }}
-        isConnected={isConnected}
-        onSelectConversation={handleSelectConversation}
-        selectedConversationId={selectedConversationId}
-        isSidebarOpen={isSidebarOpen}
-        onToggleSidebar={toggleSidebar}
-        onCreateGroup={handleCreateGroup}
-        onStartConversation={handleStartConversation}
+        onOpenSettings={() => setShowSettings(true)}
+        onCreateGroup={() => setShowCreateGroup(true)}
+        onLogout={handleLogout}
       />
 
-      <div className="flex flex-col flex-1">
-        <ChatArea
-          conversation={selectedConversation}
-          currentUser={currentUser || { id: "temp", name: "Chargement...", photo: "", role: "student", status: "offline" }}
-          users={users}
-          conversations={conversations}
-          isConnected={isConnected}
-          onSendMessage={handleSendMessage}
-          onToggleSidebar={toggleSidebar}
-          onDeleteMessage={async (messageId) => {
-            const token = localStorage.getItem("token");
-            if (!token) return;
+      {/* Main Layout Container */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar/Conversation List Layer */}
+        {(!isMobile || (!selectedConversationId && !showSettings)) && (
+          <div className={cn(
+            "flex flex-col h-full bg-wa-bg transition-all duration-300 relative",
+            isMobile ? "w-full" : "w-100 min-w-[420px] border-r border-border"
+          )}>
+            {/* Top Bar */}
+            <div className="h-16 flex items-center justify-between px-4 bg-wa-bg z-10">
+              <div className="flex items-center gap-6">
+                <button onClick={() => setIsDrawerOpen(true)} className="text-wa-text hover:bg-wa-panel p-2 rounded-full transition-colors">
+                  <Menu size={24} />
+                </button>
+                <h1 className="text-xl font-bold text-wa-text">ChatOff</h1>
+              </div>
+              <button className="text-wa-secondary hover:bg-wa-panel p-2 rounded-full transition-colors">
+                <img src="/icon-192.png" alt="ChatOff" className="w-8 h-8 rounded-lg" />
+              </button>
+            </div>
 
-            try {
-              const response = await fetch(`${API_URL}/api/messages/${messageId}`, {
-                method: "DELETE",
-                headers: {
-                  "Authorization": `Bearer ${token}`
-                }
-              });
+            {/* Conversation List Content */}
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <Sidebar
+                users={users}
+                conversations={conversations}
+                currentUser={currentUser || { id: "temp", name: "Chargement...", photo: "", role: "student", status: "offline" }}
+                isConnected={isConnected}
+                onSelectConversation={handleSelectConversation}
+                selectedConversationId={selectedConversationId}
+                isSidebarOpen={isSidebarOpen}
+                onToggleSidebar={toggleSidebar}
+                onCreateGroup={handleCreateGroup}
+                onStartConversation={handleStartConversation}
+                onOpenSettings={() => setShowSettings(true)}
+                showCreateGroup={showCreateGroup}
+                setShowCreateGroup={setShowCreateGroup}
+                showCreateDM={showCreateDM}
+                setShowCreateDM={setShowCreateDM}
+                hideHeader={true}
+                hideBottomNav={true}
+                activeTab={activeTab}
+              />
+            </div>
 
-              if (response.ok) {
-                // Locally remove message from conversation
-                setConversations(prev => prev.map(conv => ({
-                  ...conv,
-                  messages: conv.messages.filter(m => String(m.id) !== String(messageId))
-                })));
-              } else {
-                console.error("Failed to delete message on server");
-                toast({
-                  title: "Erreur",
-                  description: "Impossible de supprimer le message sur le serveur",
-                  variant: "destructive"
-                });
-              }
-            } catch (error) {
-              console.error("Error deleting message:", error);
-            }
-          }}
-          onClose={() => setSelectedConversationId(null)}
-        />
+            {/* Bottom Navigation */}
+            <div className="h-16 flex items-center justify-around border-t border-border bg-wa-bg px-2">
+              <BottomNavItem icon={UserIcon} label="Contacts" active={activeTab === "contacts"} onClick={() => setActiveTab("contacts")} />
+              <BottomNavItem icon={Radio} label="Talks" active={activeTab === "talks"} onClick={() => setActiveTab("talks")} />
+              <BottomNavItem icon={MessageSquare} label="Chats" active={activeTab === "chats"} onClick={() => setActiveTab("chats")} badge={conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0)} />
+              <BottomNavItem icon={Users} label="Stories" active={activeTab === "stories"} onClick={() => setActiveTab("stories")} />
+              <BottomNavItem icon={Phone} label="Appels" active={activeTab === "appels"} onClick={() => setActiveTab("appels")} />
+            </div>
 
-        <div className="hidden">
-          {/* Modals are manipulated by Sidebar via callbacks now */}
-        </div>
+            {/* Floating Action Button */}
+            <button
+              onClick={() => setShowCreateDM(true)}
+              className="absolute right-6 bottom-20 w-14 h-14 bg-wa-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-20"
+            >
+              <Edit2 size={24} />
+            </button>
+          </div>
+        )}
+
+        {/* Chat Content Layer */}
+        {(!isMobile || selectedConversationId || showSettings) && (
+          <div className="flex-1 flex flex-col h-full overflow-hidden bg-wa-bg border-l border-border relative">
+            {showSettings ? (
+              <SettingsView
+                currentUser={currentUser || { id: "temp", name: "Chargement...", photo: "", role: "student", status: "offline" }}
+                onClose={() => setShowSettings(false)}
+                onUpdateUser={(updatedUser) => {
+                  setCurrentUser(updatedUser);
+                  localStorage.setItem("user", JSON.stringify(updatedUser));
+                }}
+              />
+            ) : selectedConversation ? (
+              <ChatArea
+                conversation={selectedConversation}
+                currentUser={currentUser || { id: "temp", name: "Chargement...", photo: "", role: "student", status: "offline" }}
+                users={users}
+                conversations={conversations}
+                isConnected={isConnected}
+                onSendMessage={handleSendMessage}
+                onToggleSidebar={toggleSidebar}
+                onDeleteMessage={handleDeleteMessage}
+                onAddMembers={handleAddGroupMembers}
+                onRemoveMember={handleRemoveGroupMember}
+                onClose={() => setSelectedConversationId(null)}
+              />
+            ) : (
+              <div className="hidden md:flex flex-col items-center justify-center h-full text-wa-secondary opacity-20">
+                <MessageSquare size={100} />
+                <p className="mt-4 text-xl">Sélectionnez une discussion</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-
-      <ThemeToggle />
     </div>
   );
 };
+
+const BottomNavItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "flex flex-col items-center gap-1 flex-1 py-1 transition-all",
+      active ? "text-wa-primary" : "text-wa-secondary"
+    )}
+  >
+    <div className="relative">
+      <Icon size={22} className={active ? "scale-110" : ""} />
+      {badge > 0 && (
+        <span className="absolute -top-1.5 -right-2 bg-wa-primary text-white text-[10px] font-bold min-w-[16px] h-4 rounded-full flex items-center justify-center border-2 border-wa-bg px-0.5">
+          {badge}
+        </span>
+      )}
+    </div>
+    <span className="text-[10px] font-medium">{label}</span>
+  </button>
+);
 
 export default Index;

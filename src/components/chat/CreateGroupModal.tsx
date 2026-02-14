@@ -1,14 +1,14 @@
 
 import React, { useState } from "react";
 import { User } from "@/types/chat";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,17 +20,24 @@ interface CreateGroupModalProps {
   users: User[];
   currentUser: User;
   onCreateGroup: (name: string, participants: User[]) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   users,
   currentUser,
   onCreateGroup,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
 }) => {
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = externalOnOpenChange !== undefined ? externalOnOpenChange : setInternalOpen;
 
   const filteredUsers = users.filter(
     (user) =>
@@ -59,12 +66,14 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full bg-ecole-accent text-ecole-text font-medium py-2 rounded-md flex items-center justify-center hover:bg-ecole-accent/90">
-          <Users size={18} className="mr-2" />
-          Nouveau groupe
-        </Button>
-      </DialogTrigger>
+      {externalOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button className="w-full bg-ecole-accent text-ecole-text font-medium py-2 rounded-md flex items-center justify-center hover:bg-ecole-accent/90">
+            <Users size={18} className="mr-2" />
+            Nouveau groupe
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Créer un nouveau groupe</DialogTitle>
@@ -72,7 +81,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
             Donnez un nom au groupe et ajoutez des participants.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="group-name">Nom du groupe</Label>
@@ -83,22 +92,22 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
               onChange={(e) => setGroupName(e.target.value)}
             />
           </div>
-          
+
           {selectedUsers.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {selectedUsers.map((user) => (
-                <div 
+                <div
                   key={user.id}
                   className="flex items-center gap-1 bg-ecole-primary/10 rounded-full pl-1 pr-2 py-1"
                 >
-                  <Avatar 
-                    src={user.photo} 
-                    alt={user.name} 
-                    status={user.status} 
-                    className="w-6 h-6" 
+                  <Avatar
+                    src={user.photo}
+                    alt={user.name}
+                    status={user.status}
+                    className="w-6 h-6"
                   />
                   <span className="text-xs">{user.name}</span>
-                  <button 
+                  <button
                     onClick={() => handleRemoveUser(user.id)}
                     className="text-ecole-meta hover:text-ecole-offline"
                   >
@@ -108,7 +117,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
               ))}
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 gap-2">
             <Label htmlFor="participants">Ajouter des participants</Label>
             <Input
@@ -117,7 +126,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            
+
             {searchTerm && filteredUsers.length > 0 && (
               <div className="border rounded-md max-h-40 overflow-y-auto bg-white">
                 {filteredUsers.map((user) => (
@@ -126,16 +135,16 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                     className="p-2 flex items-center hover:bg-gray-100 cursor-pointer"
                     onClick={() => handleAddUser(user)}
                   >
-                    <Avatar 
-                      src={user.photo} 
-                      alt={user.name} 
-                      status={user.status} 
+                    <Avatar
+                      src={user.photo}
+                      alt={user.name}
+                      status={user.status}
                     />
                     <div className="ml-2">
                       <div className="text-sm font-medium">{user.name}</div>
                       <div className="text-xs text-ecole-meta">
-                        {user.role === "teacher" ? "Professeur" : 
-                         user.role === "student" ? "Élève" : "Personnel"}
+                        {user.role === "teacher" ? "Professeur" :
+                          user.role === "student" ? "Élève" : "Personnel"}
                       </div>
                     </div>
                   </div>
@@ -144,12 +153,12 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
             )}
           </div>
         </div>
-        
+
         <DialogFooter className="sm:justify-end">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Annuler
           </Button>
-          <Button 
+          <Button
             onClick={handleCreateGroup}
             disabled={!groupName.trim() || selectedUsers.length === 0}
           >

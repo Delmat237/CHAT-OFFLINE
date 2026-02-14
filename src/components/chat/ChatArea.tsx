@@ -1,10 +1,11 @@
-
 import React, { useEffect, useRef, useState } from "react";
+import { MessageSquare } from "lucide-react";
 import ChatHeader from "./ChatHeader";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
 import MessageSelectionToolbar from "./MessageSelectionToolbar";
 import ForwardMessageModal from "./ForwardMessageModal";
+import ConversationInfo from "./ConversationInfo";
 import { Conversation, Message, User } from "@/types/chat";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,6 +24,8 @@ interface ChatAreaProps {
   ) => void;
   onToggleSidebar: () => void;
   onDeleteMessage?: (messageId: string) => void;
+  onAddMembers?: (groupId: string, users: User[]) => void;
+  onRemoveMember?: (groupId: string, userId: string) => void;
   onClose?: () => void;
 }
 
@@ -35,6 +38,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   onSendMessage,
   onToggleSidebar,
   onDeleteMessage,
+  onAddMembers,
+  onRemoveMember,
   onClose
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -45,6 +50,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -56,6 +62,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     setSelectedMessages(new Set());
     setIsSelectionMode(false);
     setReplyToMessage(null);
+    setShowInfo(false);
   }, [conversation?.id]);
 
   const getSender = (senderId: string): User | undefined => {
@@ -197,17 +204,28 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-500">
-          <div className="text-lg font-medium">Bienvenue dans École Chat</div>
-          <p className="mt-2">Sélectionnez une conversation pour commencer</p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-wa-bg">
+        <div className="text-center max-w-md px-6">
+          <div className="mb-8 flex justify-center opacity-20">
+            <img src="/whatsapp-bg-intro.png" alt="WhatsApp Intro" className="w-64 h-auto" onError={(e) => (e.currentTarget.style.display = 'none')} />
+            <MessageSquare size={80} className="text-wa-secondary" />
+          </div>
+          <h2 className="text-[32px] font-light text-wa-text mb-4">École Chat Web</h2>
+          <p className="text-[14px] text-wa-text-secondary leading-relaxed">
+            Envoyez et recevez des messages sans connexion Internet. <br />
+            Utilisez École Chat sur votre réseau local pour rester connecté.
+          </p>
+          <div className="mt-20 text-[14px] text-wa-secondary flex items-center justify-center gap-2">
+            <div className="w-3 h-3 border border-wa-secondary rounded-full flex items-center justify-center text-[8px]">L</div>
+            Chiffré de bout en bout
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col h-screen">
+    <div className="flex-1 flex flex-col h-full bg-wa-bg overflow-hidden relative">
       {isSelectionMode && (
         <MessageSelectionToolbar
           selectedCount={selectedMessages.size}
@@ -218,40 +236,61 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         />
       )}
 
-      <ChatHeader
-        conversation={conversation}
-        isConnected={isConnected}
-        onToggleSidebar={onToggleSidebar}
-        onInitiateCall={handleInitiateCall}
-        onClose={onClose}
-      />
+      <div className="sticky top-0 z-30">
+        <ChatHeader
+          conversation={conversation}
+          isConnected={isConnected}
+          onToggleSidebar={onToggleSidebar}
+          onInitiateCall={handleInitiateCall}
+          onClose={onClose}
+          onShowInfo={() => setShowInfo(true)}
+        />
+      </div>
 
-      <div className={`flex-1 overflow-y-auto p-4 bg-gray-50 messages-container ${isSelectionMode ? 'pt-20' : ''}`}>
-        {conversation.messages.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center h-full">
-            <div className="text-center text-ecole-meta">
-              <p>Aucun message</p>
-              <p className="text-sm mt-1">Commencez la conversation !</p>
+      {showInfo && (
+        <ConversationInfo
+          conversation={conversation}
+          users={users}
+          onClose={() => setShowInfo(false)}
+          onStartMessage={() => setShowInfo(false)}
+          onAddMembers={(selected) => {
+            if (onAddMembers) onAddMembers(conversation.id, selected);
+          }}
+          onRemoveMember={(userId) => {
+            if (onRemoveMember) onRemoveMember(conversation.id, userId);
+          }}
+        />
+      )}
+
+      <div className={`flex-1 overflow-y-auto p-4 relative bg-wa-bg messages-container ${isSelectionMode ? 'pt-20' : ''}`}
+        style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', backgroundBlendMode: 'overlay' }}>
+        <div className="absolute inset-0 bg-wa-bg opacity-40 dark:opacity-85 z-0"></div>
+        <div className="relative z-10 flex flex-col min-h-full">
+          {conversation.messages.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="bg-wa-panel rounded-lg px-4 py-1 text-wa-secondary text-xs shadow-sm">
+                Les messages sont chiffrés. Personne en dehors de cette discussion ne peut les lire.
+              </div>
             </div>
-          </div>
-        ) : (
-          conversation.messages.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              isCurrentUser={message.senderId === currentUser.id}
-              sender={getSender(message.senderId)}
-              isSelectionMode={isSelectionMode}
-              isSelected={selectedMessages.has(message.id)}
-              onSelect={handleSelectMessage}
-              onCopy={handleCopyMessage}
-              onReply={handleReply}
-              onForward={handleForwardMessage}
-              onDelete={handleDeleteMessage}
-            />
-          ))
-        )}
-        <div ref={messagesEndRef} />
+          ) : (
+            conversation.messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                isCurrentUser={message.senderId === currentUser.id}
+                sender={getSender(message.senderId)}
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedMessages.has(message.id)}
+                onSelect={handleSelectMessage}
+                onCopy={handleCopyMessage}
+                onReply={handleReply}
+                onForward={handleForwardMessage}
+                onDelete={handleDeleteMessage}
+              />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       <MessageInput
